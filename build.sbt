@@ -1,12 +1,26 @@
+import org.typelevel.scalacoptions.{ScalaVersion, ScalacOptions}
+
 inThisBuild {
-  val scala212 = "2.12.18"
-  val scala213 = "2.13.11"
+  val scala3 = "3.3.3"
 
   Seq(
-    scalaVersion               := scala213,
-    crossScalaVersions         := Seq(scala212, scala213),
+    scalaVersion := scala3,
+    scalacOptions ++= ScalacOptions
+      .tokensForVersion(
+        ScalaVersion.fromString(scala3).right.get,
+        Set(
+          ScalacOptions.encoding("utf8"),
+          ScalacOptions.feature,
+          ScalacOptions.unchecked,
+          ScalacOptions.deprecation,
+          ScalacOptions.warnValueDiscard,
+          ScalacOptions.warnDeadCode,
+          ScalacOptions.release("17"),
+          ScalacOptions.privateKindProjector
+        )
+      ),
     versionScheme              := Some("early-semver"),
-    githubWorkflowJavaVersions := List(JavaSpec.temurin("11")),
+    githubWorkflowJavaVersions := List(JavaSpec.temurin("17")),
     githubWorkflowTargetTags ++= Seq("v*"),
     githubWorkflowPublishTargetBranches := Seq(
       RefPredicate.StartsWith(Ref.Tag("v")),
@@ -39,35 +53,6 @@ inThisBuild {
   )
 }
 
-ThisBuild / scalacOptions ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, minor @ (12 | 13))) =>
-      val base = Seq(
-        "-deprecation",
-        "-encoding",
-        "UTF-8",
-        "-feature",
-        "-language:implicitConversions",
-        "-unchecked",
-        "-language:higherKinds",
-        "-Xlint",
-        "-Ywarn-dead-code",
-        "-Ywarn-numeric-widen",
-        "-Ywarn-value-discard",
-        "-Ywarn-unused",
-        "-Xsource:3"
-      )
-      if (minor == 12) "-Ypartial-unification" +: base
-      else base
-
-    case Some((3, _)) =>
-      Seq.empty
-
-    case Some(_) | None =>
-      Seq.empty
-  }
-}
-
 resolvers ++= Seq("confluent".at("https://packages.confluent.io/maven/"))
 
 lazy val root =
@@ -78,19 +63,20 @@ lazy val root =
       libraryDependencies ++= {
         val circe     = "io.circe"
         val fd4s      = "com.github.fd4s"
-        val fs2KafkaV = "3.0.1"
+        val tapir     = "com.softwaremill.sttp.tapir"
+        val fs2KafkaV = "3.5.1"
+        val tapirV    = "1.10.13"
 
         Seq(
-          fd4s                     %% "fs2-kafka"                    % fs2KafkaV,
-          fd4s                     %% "fs2-kafka-vulcan"             % fs2KafkaV,
-          "com.github.andyglow"    %% "scala-jsonschema"             % "0.7.9",
-          circe                    %% "circe-jackson212"             % "0.14.0",
-          circe                    %% "circe-generic"                % "0.14.5",
-          "org.scala-lang.modules" %% "scala-collection-compat"      % "2.11.0",
-          "org.typelevel"          %% "munit-cats-effect"            % "2.0.0-M3" % Test,
-          "com.dimafeng"           %% "testcontainers-scala-munit"   % "0.40.17"  % Test,
-          "ch.qos.logback"          % "logback-classic"              % "1.4.7"    % Test,
-          "io.confluent"            % "kafka-json-schema-serializer" % "7.4.0"
+          fd4s                            %% "fs2-kafka"                    % fs2KafkaV,
+          tapir                           %% "tapir-json-pickler"           % tapirV,
+          tapir                           %% "tapir-apispec-docs"           % tapirV,
+          "com.softwaremill.sttp.apispec" %% "jsonschema-circe"             % "0.10.0",
+          "org.scala-lang.modules"        %% "scala-collection-compat"      % "2.12.0",
+          "org.typelevel"                 %% "munit-cats-effect"            % "2.0.0-M3" % Test,
+          "com.dimafeng"                  %% "testcontainers-scala-munit"   % "0.41.4"   % Test,
+          "ch.qos.logback"                 % "logback-classic"              % "1.5.6"    % Test,
+          "io.confluent"                   % "kafka-json-schema-serializer" % "7.6.1"
         )
       }
     )

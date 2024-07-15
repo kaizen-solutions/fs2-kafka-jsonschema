@@ -1,52 +1,75 @@
 package io.kaizensolutions.jsonschema
 
+import cats.effect.Resource
+import cats.effect.Sync
+import com.fasterxml.jackson.databind.JsonNode
+import fs2.kafka.*
+import io.confluent.kafka.schemaregistry.SchemaProvider
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.*
+import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig.*
+import sttp.tapir.json.pickler.Pickler
+
+import scala.jdk.CollectionConverters.*
+
 object JsonSchemaDeserializerSettings {
   val default: JsonSchemaDeserializerSettings = JsonSchemaDeserializerSettings()
 }
 
-/**
- * Settings that describe how to interact with Confluent's Schema Registry when
- * deserializing data
- *
- * @param validatePayloadAgainstServerSchema
- *   will validate the payload against the schema on the server
- * @param validatePayloadAgainstClientSchema
- *   will validate the payload against the schema derived from the datatype you
- *   specify
- * @param validateClientSchemaAgainstServer
- *   will validate the schema you specify against the server's schema
- * @param failOnUnknownKeys
- *   will specify failure when unknown JSON keys are encountered
- * @param jsonSchemaId
- *   is used to override the schema ID of the data that is being consumed
- */
 final case class JsonSchemaDeserializerSettings(
-  validatePayloadAgainstServerSchema: Boolean = false,
-  validatePayloadAgainstClientSchema: Boolean = false,
-  validateClientSchemaAgainstServer: Boolean = false,
-  failOnUnknownKeys: Boolean = false,
-  jsonSchemaId: Option[String] = None
+  schemaRegistryUrl: String = "http://localhost:8081",
+  failOnUnknownProperties: Boolean = true,
+  failOnInvalidSchema: Boolean = false,
+  cacheCapacity: Int = 1024,
+  client: Option[SchemaRegistryClient] = None
 ) { self =>
-  def withPayloadValidationAgainstServerSchema(b: Boolean): JsonSchemaDeserializerSettings =
-    self.copy(validatePayloadAgainstServerSchema = b)
+  def withSchemaRegistryUrl(url: String): JsonSchemaDeserializerSettings =
+    self.copy(schemaRegistryUrl = url)
 
-  def withPayloadValidationAgainstClientSchema(b: Boolean): JsonSchemaDeserializerSettings =
-    self.copy(validatePayloadAgainstClientSchema = b)
+  def withFailOnUnknownProperties(b: Boolean): JsonSchemaDeserializerSettings =
+    self.copy(failOnUnknownProperties = b)
 
-  def withAggressiveSchemaValidation(b: Boolean): JsonSchemaDeserializerSettings =
-    self.copy(validateClientSchemaAgainstServer = b)
+  def withFailOnInvalidSchema(b: Boolean): JsonSchemaDeserializerSettings =
+    self.copy(failOnInvalidSchema = b)
 
-  def withFailOnUnknownKeys(b: Boolean): JsonSchemaDeserializerSettings =
-    self.copy(failOnUnknownKeys = b)
+  def withClient(client: SchemaRegistryClient): JsonSchemaDeserializerSettings =
+    self.copy(client = Option(client))
 
-  def withAggressiveValidation(b: Boolean): JsonSchemaDeserializerSettings =
-    self.copy(
-      validatePayloadAgainstServerSchema = b,
-      validatePayloadAgainstClientSchema = b,
-      validateClientSchemaAgainstServer = b,
-      failOnUnknownKeys = b
+  def withCacheCapacity(value: Int): JsonSchemaDeserializerSettings =
+    self.copy(cacheCapacity = value)
+
+  def forKey[F[_], A](using Pickler[A], Sync[F]): Resource[F, KeyDeserializer[F, A]] =
+    create(
+      config + (JSON_KEY_TYPE -> classOf[JsonNode].getName()),
+      isKey = true
     )
 
-  def withJsonSchemaId(id: String): JsonSchemaDeserializerSettings =
-    self.copy(jsonSchemaId = Some(id))
+  def forValue[F[_], A](using Pickler[A], Sync[F]): Resource[F, ValueDeserializer[F, A]] =
+    create(
+      config + (JSON_VALUE_TYPE -> classOf[JsonNode].getName()),
+      isKey = false
+    )
+
+  private def config = Map(
+    SCHEMA_REGISTRY_URL_CONFIG -> schemaRegistryUrl,
+    FAIL_INVALID_SCHEMA        -> failOnInvalidSchema,
+    FAIL_UNKNOWN_PROPERTIES    -> failOnUnknownProperties
+  )
+
+  private def create[F[_], A](
+    confluentConfig: Map[String, Any],
+    isKey: Boolean
+  )(using p: Pickler[A], sync: Sync[F]): Resource[F, Deserializer[F, A]] =
+    client
+      .map(Resource.pure[F, SchemaRegistryClient])
+      .getOrElse:
+        val providers: java.util.List[SchemaProvider] = List(new JsonSchemaProvider()).asJava
+        val acquire = sync.delay(
+          new CachedSchemaRegistryClient(schemaRegistryUrl, cacheCapacity, providers, confluentConfig.asJava)
+        )
+        val release = (client: SchemaRegistryClient) => sync.delay(client.close())
+        Resource.make(acquire)(release)
+      .flatMap(client => JsonSchemaDeserializer.create(isKey, confluentConfig, client))
 }

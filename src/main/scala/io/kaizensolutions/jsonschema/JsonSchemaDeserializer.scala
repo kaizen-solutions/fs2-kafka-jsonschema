@@ -1,121 +1,36 @@
 package io.kaizensolutions.jsonschema
 
-import cats.effect.{Ref, Sync}
+import cats.effect.{Resource, Sync}
 import cats.syntax.all.*
-import com.fasterxml.jackson.databind.{DeserializationFeature, JsonNode, ObjectMapper}
-import fs2.kafka.{Deserializer, KeyDeserializer, ValueDeserializer}
-import io.circe.Decoder
-import io.circe.jackson.jacksonToCirce
+import com.fasterxml.jackson.databind.JsonNode
+import fs2.kafka.*
+import sttp.tapir.json.pickler.Pickler
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
-import io.confluent.kafka.schemaregistry.json.JsonSchema
-import io.confluent.kafka.schemaregistry.json.jackson.Jackson
-import org.apache.kafka.common.errors.SerializationException
+import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer
+import scala.jdk.CollectionConverters.*
 
-import java.io.{ByteArrayInputStream, IOException}
-import java.nio.ByteBuffer
-import scala.reflect.ClassTag
-
-// See AbstractKafkaJsonSchemaDeserializer
-object JsonSchemaDeserializer {
-  def forValue[F[_]: Sync, A: Decoder](
-    settings: JsonSchemaDeserializerSettings,
+private[jsonschema] object JsonSchemaDeserializer:
+  def create[F[_], A](
+    isKey: Boolean,
+    confluentConfig: Map[String, Any],
     client: SchemaRegistryClient
-  )(implicit jsonSchema: json.Schema[A], tag: ClassTag[A]): F[ValueDeserializer[F, A]] =
-    toJsonSchema[F, A](jsonSchema, settings.jsonSchemaId)
-      .flatMap(create(settings, client, _))
-      .map(identity)
+  )(using p: Pickler[A], sync: Sync[F]): Resource[F, Deserializer[F, A]] =
+    Resource
+      .make(acquire = sync.delay(KafkaJsonSchemaDeserializer[JsonNode](client)))(des => sync.delay(des.close()))
+      .evalTap: des =>
+        sync.delay(des.configure(confluentConfig.asJava, isKey))
+      .map(u => JsonSchemaDeserializer(u).deserializer)
 
-  def forKey[F[_]: Sync, A: Decoder](
-    settings: JsonSchemaDeserializerSettings,
-    client: SchemaRegistryClient
-  )(implicit jsonSchema: json.Schema[A], tag: ClassTag[A]): F[KeyDeserializer[F, A]] =
-    toJsonSchema[F, A](jsonSchema, settings.jsonSchemaId)
-      .flatMap(create(settings, client, _))
-      .map(identity)
+private class JsonSchemaDeserializer[F[_], A](underlying: KafkaJsonSchemaDeserializer[JsonNode])(using
+  sync: Sync[F],
+  pickler: Pickler[A]
+):
+  import pickler.innerUpickle.*
+  private given Reader[A] = pickler.innerUpickle.reader
 
-  def create[F[_]: Sync, A: Decoder](
-    settings: JsonSchemaDeserializerSettings,
-    client: SchemaRegistryClient,
-    schema: JsonSchema
-  ): F[Deserializer[F, A]] = {
-    // NOTE: This is a workaround for Scala 2.12.x
-    val refMakeInstance = Ref.Make.syncInstance[F]
-    Ref.of[F, Set[Int]](Set.empty[Int])(refMakeInstance).map { cache =>
-      val objectMapper = Jackson
-        .newObjectMapper()
-        .configure(
-          DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          settings.failOnUnknownKeys
-        )
-
-      new JsonSchemaDeserializer[F, A](settings, schema, objectMapper, cache, client).jsonSchemaDeserializer
-    }
-  }
-
-}
-private class JsonSchemaDeserializer[F[_]: Sync, A](
-  settings: JsonSchemaDeserializerSettings,
-  clientSchema: JsonSchema,
-  objectMapper: ObjectMapper,
-  compatSubjectIdCache: Ref[F, Set[Int]],
-  client: SchemaRegistryClient
-)(implicit decoder: Decoder[A]) {
-  private val MagicByte: Byte = 0x0
-  private val IdSize: Int     = 4
-
-  def jsonSchemaDeserializer: Deserializer[F, A] =
-    Deserializer.instance { (_, _, bytes) =>
-      Sync[F].delay {
-        val buffer       = getByteBuffer(bytes)
-        val id           = buffer.getInt()
-        val serverSchema = client.getSchemaById(id).asInstanceOf[JsonSchema]
-        val bufferLength = buffer.limit() - 1 - IdSize
-        val start        = buffer.position() + buffer.arrayOffset()
-        val jsonNode: JsonNode =
-          objectMapper.readTree(new ByteArrayInputStream(buffer.array, start, bufferLength))
-
-        if (settings.validatePayloadAgainstServerSchema) {
-          serverSchema.validate(jsonNode)
-        }
-
-        if (settings.validatePayloadAgainstClientSchema) {
-          clientSchema.validate(jsonNode)
-        }
-
-        (id, serverSchema, jsonNode)
-      }.flatMap { case (serverId, serverSchema, jsonNode) =>
-        val check =
-          if (settings.validateClientSchemaAgainstServer)
-            checkSchemaCompatibility(serverId, serverSchema)
-          else Sync[F].unit
-
-        check.as(jacksonToCirce(jsonNode))
-      }
-        .map(decoder.decodeJson)
-        .rethrow
-    }
-
-  private def getByteBuffer(payload: Array[Byte]): ByteBuffer = {
-    val buffer = ByteBuffer.wrap(payload)
-    if (buffer.get() != MagicByte)
-      throw new SerializationException("Unknown magic byte when deserializing from Kafka")
-    buffer
-  }
-
-  private def checkSchemaCompatibility(serverSubjectId: Int, serverSchema: JsonSchema): F[Unit] = {
-    val checkSchemaUpdateCache =
-      Sync[F].delay {
-        val incompatibilities = clientSchema.isBackwardCompatible(serverSchema)
-        if (!incompatibilities.isEmpty)
-          throw new IOException(
-            s"Incompatible consumer schema with server schema: ${incompatibilities.toArray.mkString(", ")}"
-          )
-        else ()
-      } *> compatSubjectIdCache.update(_ + serverSubjectId)
-
-    for {
-      existing <- compatSubjectIdCache.get
-      _        <- if (existing.contains(serverSubjectId)) Sync[F].unit else checkSchemaUpdateCache
-    } yield ()
-  }
-}
+  val deserializer: Deserializer[F, A] =
+    Deserializer
+      .delegate(underlying)
+      .map: node =>
+        Either.catchNonFatal(read[A](node.toString()))
+      .rethrow

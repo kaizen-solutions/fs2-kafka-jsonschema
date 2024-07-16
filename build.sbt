@@ -39,8 +39,7 @@ inThisBuild {
       )
     ),
     developers := List(
-      Developer("calvinlfer", "Calvin Fernandes", "cal@kaizen-solutions.io", url("https://www.kaizen-solutions.io")),
-      Developer("anakos", "Alex Nakos", "anakos@users.noreply.github.com", url("https://github.com"))
+      Developer("calvinlfer", "Calvin Fernandes", "cal@kaizen-solutions.io", url("https://www.kaizen-solutions.io"))
     ),
     licenses               := List("MIT" -> url("https://opensource.org/licenses/MIT")),
     organization           := "io.kaizen-solutions",
@@ -59,7 +58,7 @@ lazy val root =
   project
     .in(file("."))
     .settings(
-      name := "fs2-kafka-jsonschema-support",
+      name := "fs2-kafka-jsonschema",
       libraryDependencies ++= {
         val circe     = "io.circe"
         val fd4s      = "com.github.fd4s"

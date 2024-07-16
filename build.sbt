@@ -19,12 +19,17 @@ inThisBuild {
           ScalacOptions.privateKindProjector
         )
       ),
+    semanticdbEnabled          := true,
+    semanticdbVersion          := scalafixSemanticdb.revision,
     versionScheme              := Some("early-semver"),
     githubWorkflowJavaVersions := List(JavaSpec.temurin("17")),
     githubWorkflowTargetTags ++= Seq("v*"),
     githubWorkflowPublishTargetBranches := Seq(
       RefPredicate.StartsWith(Ref.Tag("v")),
       RefPredicate.Equals(Ref.Branch("main"))
+    ),
+    githubWorkflowBuild := Seq(
+      WorkflowStep.Sbt(List("lintEnforce", "test"))
     ),
     githubWorkflowPublish := Seq(
       WorkflowStep.Sbt(
@@ -60,22 +65,26 @@ lazy val root =
     .settings(
       name := "fs2-kafka-jsonschema",
       libraryDependencies ++= {
-        val circe     = "io.circe"
         val fd4s      = "com.github.fd4s"
         val tapir     = "com.softwaremill.sttp.tapir"
         val fs2KafkaV = "3.5.1"
         val tapirV    = "1.10.13"
 
         Seq(
-          fd4s                            %% "fs2-kafka"                    % fs2KafkaV,
-          tapir                           %% "tapir-json-pickler"           % tapirV,
-          tapir                           %% "tapir-apispec-docs"           % tapirV,
-          "com.softwaremill.sttp.apispec" %% "jsonschema-circe"             % "0.10.0",
-          "org.scala-lang.modules"        %% "scala-collection-compat"      % "2.12.0",
-          "org.typelevel"                 %% "munit-cats-effect"            % "2.0.0-M3" % Test,
-          "com.dimafeng"                  %% "testcontainers-scala-munit"   % "0.41.4"   % Test,
-          "ch.qos.logback"                 % "logback-classic"              % "1.5.6"    % Test,
-          "io.confluent"                   % "kafka-json-schema-serializer" % "7.6.1"
+          fd4s                            %% "fs2-kafka"                      % fs2KafkaV,
+          tapir                           %% "tapir-json-pickler"             % tapirV,
+          tapir                           %% "tapir-apispec-docs"             % tapirV,
+          "com.softwaremill.sttp.apispec" %% "jsonschema-circe"               % "0.10.0",
+          "org.scala-lang.modules"        %% "scala-collection-compat"        % "2.12.0",
+          "com.disneystreaming"           %% "weaver-cats"                    % "0.8.4"   % Test,
+          "io.github.embeddedkafka"       %% "embedded-kafka-schema-registry" % "7.6.1.1" % Test,
+          "ch.qos.logback"                 % "logback-classic"                % "1.5.6"   % Test,
+          "io.confluent"                   % "kafka-json-schema-serializer"   % "7.6.1"
         )
-      }
+      },
+      excludeDependencies += "org.scala-lang.modules" % "scala-collection-compat_2.13",
+      testFrameworks += new TestFramework("weaver.framework.CatsEffect")
     )
+
+addCommandAlias("lint", "; scalafmtAll; scalafixAll")
+addCommandAlias("lintEnforce", "; scalafmtCheckAll; scalafixAll --check")

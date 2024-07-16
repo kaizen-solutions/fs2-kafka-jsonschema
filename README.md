@@ -1,4 +1,4 @@
-## FS2 Kafka JsonSchema support ##
+## FS2 Kafka JsonSchema
 
 [![Continuous Integration](https://github.com/kaizen-solutions/fs2-kafka-jsonschema-support/actions/workflows/ci.yml/badge.svg)](https://github.com/kaizen-solutions/fs2-kafka-jsonschema-support/actions/workflows/ci.yml)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema-support_3/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema_3)

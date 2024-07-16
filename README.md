@@ -1,11 +1,9 @@
 ## FS2 Kafka JsonSchema support ##
 
 [![Continuous Integration](https://github.com/kaizen-solutions/fs2-kafka-jsonschema-support/actions/workflows/ci.yml/badge.svg)](https://github.com/kaizen-solutions/fs2-kafka-jsonschema-support/actions/workflows/ci.yml)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema-support_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema-support_2.13)
-[![JitPack](https://jitpack.io/v/kaizen-solutions/fs2-kafka-jsonschema-support.svg)](https://jitpack.io/#kaizen-solutions/fs2-kafka-jsonschema-support)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema-support_3/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kaizen-solutions/fs2-kafka-jsonschema_3)
 
-
-Provides FS2 Kafka `Serializer`s and `Deserializer`s that provide integration with Confluent Schema Registry for JSON messages with JSON Schemas. 
+Provides FS2 Kafka `Serializer`s and `Deserializer`s that provide integration with Confluent Schema Registry for JSON messages with JSON Schemas.
 
 __Note:__ _This library only works with Scala 3.3.x and above._ For Scala 2.x, see [here](https://github.com/kaizen-solutions/fs2-kafka-jsonschema-support).
 

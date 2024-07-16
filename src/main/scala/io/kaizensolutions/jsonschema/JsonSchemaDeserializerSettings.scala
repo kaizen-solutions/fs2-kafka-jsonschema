@@ -1,12 +1,10 @@
 package io.kaizensolutions.jsonschema
 
-import cats.effect.Resource
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import com.fasterxml.jackson.databind.JsonNode
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.SchemaProvider
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.*
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig.*
@@ -14,9 +12,8 @@ import sttp.tapir.json.pickler.Pickler
 
 import scala.jdk.CollectionConverters.*
 
-object JsonSchemaDeserializerSettings {
+object JsonSchemaDeserializerSettings:
   val default: JsonSchemaDeserializerSettings = JsonSchemaDeserializerSettings()
-}
 
 final case class JsonSchemaDeserializerSettings(
   schemaRegistryUrl: String = "http://localhost:8081",
@@ -24,7 +21,8 @@ final case class JsonSchemaDeserializerSettings(
   failOnInvalidSchema: Boolean = false,
   cacheCapacity: Int = 1024,
   client: Option[SchemaRegistryClient] = None
-) { self =>
+):
+  self =>
   def withSchemaRegistryUrl(url: String): JsonSchemaDeserializerSettings =
     self.copy(schemaRegistryUrl = url)
 
@@ -72,4 +70,3 @@ final case class JsonSchemaDeserializerSettings(
         val release = (client: SchemaRegistryClient) => sync.delay(client.close())
         Resource.make(acquire)(release)
       .flatMap(client => JsonSchemaDeserializer.create(isKey, confluentConfig, client))
-}

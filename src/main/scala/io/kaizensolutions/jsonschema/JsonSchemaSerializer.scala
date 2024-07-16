@@ -1,18 +1,15 @@
 package io.kaizensolutions.jsonschema
 
-import cats.effect.Resource
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import cats.syntax.functor.*
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import fs2.kafka.*
 import io.circe.syntax.*
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
-import io.confluent.kafka.schemaregistry.json.JsonSchema
-import io.confluent.kafka.schemaregistry.json.JsonSchemaUtils
+import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer
-import sttp.apispec.{ExampleSingleValue, SchemaType}
 import sttp.apispec.circe.*
+import sttp.apispec.{ExampleSingleValue, SchemaType}
 import sttp.tapir.docs.apispec.schema.*
 import sttp.tapir.json.pickler.Pickler
 
@@ -27,9 +24,7 @@ private[jsonschema] object JsonSchemaSerializer:
     envelopeMode: Boolean
   )(using p: Pickler[A], sync: Sync[F]): Resource[F, Serializer[F, A]] =
     Resource
-      .make(sync.delay(KafkaJsonSchemaSerializer[JsonNode](client, confluentConfig)))(client =>
-        sync.delay(client.close())
-      )
+      .make(sync.delay(KafkaJsonSchemaSerializer[JsonNode](client, confluentConfig)))(client => sync.delay(client.close()))
       .evalTap: client =>
         sync.delay(client.configure(confluentConfig, isKey))
       .evalMap: underlying =>

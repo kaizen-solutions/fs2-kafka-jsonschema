@@ -4,9 +4,10 @@ import cats.effect.{Resource, Sync}
 import cats.syntax.all.*
 import com.fasterxml.jackson.databind.JsonNode
 import fs2.kafka.*
-import sttp.tapir.json.pickler.Pickler
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer
+import sttp.tapir.json.pickler.Pickler
+
 import scala.jdk.CollectionConverters.*
 
 private[jsonschema] object JsonSchemaDeserializer:

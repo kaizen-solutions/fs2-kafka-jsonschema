@@ -1,20 +1,17 @@
 package io.kaizensolutions.jsonschema
-import cats.effect.Resource
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.kafka.*
+import io.circe.generic.auto
 import io.confluent.kafka.schemaregistry.SchemaProvider
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
-import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
-import io.confluent.kafka.schemaregistry.json.SpecificationVersion
+import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
+import io.confluent.kafka.schemaregistry.json.{JsonSchemaProvider, SpecificationVersion}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.*
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializerConfig.*
 import sttp.tapir.json.pickler.Pickler
 
 import java.util.Locale
 import scala.jdk.CollectionConverters.*
-import io.circe.generic.auto
 
 object JsonSchemaSerializerSettings:
   val default: JsonSchemaSerializerSettings = JsonSchemaSerializerSettings()

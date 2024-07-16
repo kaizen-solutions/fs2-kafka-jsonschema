@@ -9,11 +9,8 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer
 import sttp.apispec.circe.*
-import sttp.apispec.{ExampleSingleValue, SchemaType}
 import sttp.tapir.docs.apispec.schema.*
 import sttp.tapir.json.pickler.Pickler
-
-import scala.jdk.CollectionConverters.*
 
 private[jsonschema] object JsonSchemaSerializer:
   def create[F[_], A](

@@ -4,18 +4,15 @@ import cats.effect.*
 import cats.syntax.all.*
 import fs2.Stream
 import fs2.kafka.*
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
 import io.confluent.kafka.schemaregistry.{CompatibilityLevel, SchemaProvider}
 import io.github.embeddedkafka.schemaregistry.*
 import org.apache.kafka.common.errors.{InvalidConfigurationException, SerializationException as UnderlyingSerializationException}
-import sttp.tapir.Schema.annotations.*
 import sttp.tapir.json.pickler.Pickler
 import weaver.*
 
-import java.io.File
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 
 object JsonSchemaSerdesSpec extends IOSuite:

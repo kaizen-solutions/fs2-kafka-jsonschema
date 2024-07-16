@@ -2,7 +2,6 @@ package io.kaizensolutions.jsonschema
 import cats.effect.{Resource, Sync}
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.kafka.*
-import io.circe.generic.auto
 import io.confluent.kafka.schemaregistry.SchemaProvider
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.json.{JsonSchemaProvider, SpecificationVersion}

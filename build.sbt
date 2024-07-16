@@ -14,7 +14,10 @@ inThisBuild {
           ScalacOptions.unchecked,
           ScalacOptions.deprecation,
           ScalacOptions.warnValueDiscard,
+          ScalacOptions.warnUnusedImports,
           ScalacOptions.warnDeadCode,
+          ScalacOptions.warnUnusedImplicits,
+          ScalacOptions.warnUnusedExplicits,
           ScalacOptions.release("17"),
           ScalacOptions.privateKindProjector
         )
